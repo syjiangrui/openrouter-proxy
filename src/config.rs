@@ -2,7 +2,7 @@ use clap::Parser;
 use std::path::PathBuf;
 
 #[derive(Parser, Debug, Clone)]
-#[command(about = "OpenRouter API 代理服务器 (伪装为 OpenAI API)")]
+#[command(about = "OpenRouter API 代理服务器 (OpenAI API)")]
 pub struct Config {
     /// 是否启用 HTTPS
     #[arg(long, default_value_t = false)]

@@ -8,7 +8,7 @@ use axum::{
     routing::{any, get},
     Router,
 };
-use std::{net::SocketAddr, sync::Arc};
+use std::net::SocketAddr;
 use tower_http::cors::{Any, CorsLayer};
 use tracing::info;
 
@@ -28,16 +28,16 @@ pub async fn run(config: Config) -> Result<(), AppError> {
         // 带提供商路径
         .route(
             "/v1/:provider/chat/completions",
-            any(proxy::proxy_with_provider),
+            any(proxy::proxy_chat_completions_with_provider),
         )
-        .route("/v1/:provider/embeddings", any(proxy::proxy_with_provider))
-        .route("/v1/:provider/models", any(proxy::proxy_with_provider))
-        .route("/v1/:provider/:path", any(proxy::proxy_with_provider))
+        .route(
+            "/v1/:provider/embeddings",
+            any(proxy::proxy_embeddings_with_provider),
+        )
         // 不带提供商路径
-        .route("/v1/chat/completions", any(proxy::proxy_without_provider))
-        .route("/v1/embeddings", any(proxy::proxy_without_provider))
-        .route("/v1/models", any(proxy::proxy_without_provider))
-        .route("/v1/:path", any(proxy::proxy_without_provider))
+        .route("/v1/chat/completions", any(proxy::proxy_chat_completions))
+        .route("/v1/embeddings", any(proxy::proxy_embeddings))
+        .route("/v1/models", any(proxy::proxy_models))
         .layer(cors)
         .with_state(service);
 

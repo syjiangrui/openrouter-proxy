@@ -1,12 +1,11 @@
 use crate::error::AppError;
 use axum::{
-    body::Body,
+    body::{Body, Bytes},
     http::{HeaderMap, Method},
     response::{IntoResponse, Response},
 };
 use futures_util::TryStreamExt;
 use reqwest::Client;
-use serde_json::Value;
 use std::sync::Arc;
 
 pub struct OpenRouterService {
@@ -42,29 +41,47 @@ impl OpenRouterService {
         Ok(auth_str[7..].to_string())
     }
 
+    pub async fn proxy_request(
+        &self,
+        provider: Option<&str>,
+        path: &str,
+        method: Method,
+        headers: &HeaderMap,
+        body: Bytes,
+    ) -> Result<Response, AppError> {
+        let should_modify_provider = provider.is_some();
+
+        // 提取API密钥
+        let api_key = self.extract_api_key(headers)?;
+
+        // 处理请求体
+        let processed_body = self.process_request_body(&body, provider, should_modify_provider)?;
+
+        // 发送代理请求
+        self.send_proxy_request(path, method, headers, processed_body, &api_key)
+            .await
+    }
+
     // 处理请求体，如果需要可以修改模型名称
     pub fn process_request_body(
         &self,
         body: &[u8],
         provider: Option<&str>,
-        should_modify_model: bool,
+        should_modify_provider: bool,
     ) -> Result<Vec<u8>, AppError> {
         // 如果不需要修改或者没有提供商，则直接返回原始请求体
-        if !should_modify_model || provider.is_none() {
+        if !should_modify_provider || provider.is_none() {
             return Ok(body.to_vec());
         }
 
         // 解析JSON
-        let mut json_body: Value = serde_json::from_slice(body)
+        let mut json_body: serde_json::Value = serde_json::from_slice(body)
             .map_err(|_| AppError::Parse("无效的 JSON 请求体".into()))?;
 
-        // 修改模型名称
-        if let Some(model) = json_body.get("model").and_then(|m| m.as_str()) {
-            if !model.contains("/") {
-                let model_name = format!("{}/{}", provider.unwrap(), model);
-                // 修改这行代码，使用正确的 serde_json::Value
-                json_body["model"] = serde_json::Value::String(model_name);
-            }
+        // 修改提供商信息
+        if let Some(provider_name) = provider {
+            // 使用辅助函数设置提供商
+            crate::models::request::set_provider(&mut json_body, provider_name);
         }
 
         // 转回字节
