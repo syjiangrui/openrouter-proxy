@@ -39,8 +39,8 @@ cargo build --release
 # HTTP 模式 (默认端口 3000)
 cargo run --release
 
-# 指定端口
-cargo run --release -- --port 8080
+# 指定 IP 和端口
+cargo run --release -- --ip 127.0.0.1 --port 8080
 
 # 指定模型到提供商的映射
 cargo run --release -- --model-provider-mapping "*anthropic/claude*=Anthropic,Google" --model-provider-mapping "gpt-4=OpenAI"
@@ -130,57 +130,58 @@ curl -X POST http://localhost:3000/v1/chat/completions \
 
 | 参数 | 说明 | 默认值 |
 |---|---|---|
-| `--port PORT` | 监听端口 | `3000` |
+| `--port PORT` | 监听端口 | `3000` |0` |
 | `--https` | 启用 HTTPS | `false` |
 | `--cert-path PATH` | SSL 证书路径 | 无 |
-| `--key-path PATH` | SSL 私钥路径 | 无 |
+| `--key-path PATH` | SSL 私钥路径 | 无 ||
 | `--openrouter-base-url URL` | OpenRouter API 基础 URL | `https://openrouter.ai/api/v1` |
+| `--model-provider-mapping PATTERN=PROVIDER1,PROVIDER2` | 模型模式到提供商的映射 | 无 |ai/api/v1` |
 | `--model-provider-mapping PATTERN=PROVIDER1,PROVIDER2` | 模型模式到提供商的映射 | 无 |
-
 模型模式支持以下通配符匹配:
 - `*suffix` - 匹配以 "suffix" 结尾的模型名称
 - `prefix*` - 匹配以 "prefix" 开头的模型名称
 - `*substring*` - 匹配包含 "substring" 的模型名称
+- 精确匹配 - 没有通配符时进行精确匹配含 "substring" 的模型名称
 - 精确匹配 - 没有通配符时进行精确匹配
-
 ## 项目结构
-
+## 项目结构
 ```
 openrouter-proxy/
-├── Cargo.toml
+├── Cargo.tomlxy/
 ├── Dockerfile
 ├── .env.example
-├── README.md
-├── src/
+├── README.mdple
+├── src/ME.md
 │   ├── main.rs                 # 应用入口点
-│   ├── config.rs               # 配置处理
+│   ├── config.rs               # 配置处理点
 │   ├── app.rs                  # 应用设置和服务器初始化
-│   ├── error.rs                # 错误类型和处理
-│   ├── handlers/               # 请求处理器
-│   │   ├── mod.rs              # 模块声明
+│   ├── error.rs                # 错误类型和处理器初始化
+│   ├── handlers/               # 请求处理器处理
+│   │   ├── mod.rs              # 模块声明器
 │   │   ├── health.rs           # 健康检查处理器
-│   │   └── proxy.rs            # 代理处理器
-│   ├── models/                 # 数据模型
+│   │   └── proxy.rs            # 代理处理器理器
+│   ├── models/                 # 数据模型器
 │   │   ├── mod.rs              # 模块声明
 │   │   └── request.rs          # 请求模型
 │   ├── services/               # 业务逻辑
 │   │   ├── mod.rs              # 模块声明
 │   │   └── openrouter.rs       # OpenRouter服务逻辑
-│   └── utils/                  # 工具函数
+│   └── utils/                  # 工具函数Router服务逻辑
 │       ├── mod.rs              # 模块声明
 │       └── tls.rs              # TLS相关工具函数
+```     └── tls.rs              # TLS相关工具函数
 ```
-
 ## 许可证
-
+## 许可证
 MIT License - 详情请参阅 LICENSE 文件。
-
+MIT License - 详情请参阅 LICENSE 文件。
 ## 致谢
-
+## 致谢
 - [OpenRouter API](https://openrouter.ai/) - 提供统一的 AI 模型访问
-- [Axum](https://github.com/tokio-rs/axum) - Rust Web 框架
+- [Axum](https://github.com/tokio-rs/axum) - Rust Web 框架访问
+- [Tokio](https://tokio.rs/) - Rust 异步运行时) - Rust Web 框架
 - [Tokio](https://tokio.rs/) - Rust 异步运行时
-
 ---
-
+---
+如果您有任何问题或建议，欢迎创建 issue 或提交 PR！
 如果您有任何问题或建议，欢迎创建 issue 或提交 PR！

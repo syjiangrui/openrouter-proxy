@@ -8,7 +8,7 @@ use axum::{
     routing::{any, get},
     Router,
 };
-use std::net::SocketAddr;
+use std::net::{IpAddr, SocketAddr};
 use tower_http::cors::{Any, CorsLayer};
 use tracing::info;
 
@@ -35,7 +35,13 @@ pub async fn run(config: Config) -> Result<(), AppError> {
         .layer(cors)
         .with_state(service);
 
-    let addr = SocketAddr::from(([0, 0, 0, 0], config.port));
+    // 解析 IP 地址
+    let ip: IpAddr = config
+        .ip
+        .parse()
+        .map_err(|_| AppError::Parse(format!("无法解析 IP 地址: {}", config.ip)))?;
+
+    let addr = SocketAddr::from((ip, config.port));
 
     // 显示模型提供商映射配置
     if !config.model_provider_mapping.is_empty() {
@@ -58,7 +64,7 @@ pub async fn run(config: Config) -> Result<(), AppError> {
             .as_ref()
             .ok_or_else(|| AppError::Tls("使用 HTTPS 需要提供 --key-path".into()))?;
 
-        info!("API 代理服务运行在 https://{}", addr);
+        info!("API 代理服务运行在 https://{}:{}", config.ip, config.port);
 
         // 使用 axum-server 启动 HTTPS 服务器
         let tls_config = axum_server::tls_rustls::RustlsConfig::from_pem_file(cert_path, key_path)
@@ -70,7 +76,7 @@ pub async fn run(config: Config) -> Result<(), AppError> {
             .await
             .map_err(|e| AppError::Tls(format!("HTTPS 服务器错误: {}", e)))?;
     } else {
-        info!("API 代理服务运行在 http://{}", addr);
+        info!("API 代理服务运行在 http://{}:{}", config.ip, config.port);
         // 使用 axum-server 启动 HTTP 服务器
         axum_server::bind(addr)
             .serve(app.into_make_service())

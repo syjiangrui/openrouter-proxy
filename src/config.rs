@@ -16,6 +16,10 @@ pub struct Config {
     #[arg(long)]
     pub key_path: Option<PathBuf>,
 
+    /// 监听的 IP 地址
+    #[arg(short, long, default_value = "0.0.0.0")]
+    pub ip: String,
+
     /// 端口号
     #[arg(short, long, default_value_t = 3000)]
     pub port: u16,
