@@ -1,13 +1,10 @@
 # OpenRouter API 代理
 
-一个使用 Rust 编写的轻量级 OpenRouter API 代理服务器，支持通过 URL 路径指定 AI 提供商，并使用与 OpenAI API 兼容的格式处理请求。
+一个使用 Rust 编写的轻量级 OpenRouter API 代理服务器，支持基于模型名称匹配自动指定 AI 提供商，并使用与 OpenAI API 兼容的格式处理请求。
 
 ## 功能特点
 
-- **双模式支持**：
-  - 带提供商路径：`/v1/{provider}/chat/completions`
-  - 标准 OpenAI 格式：`/v1/chat/completions`
-- **自动添加提供商信息**：通过 URL 路径指定提供商时，自动添加 `provider` 字段
+- **自动提供商匹配**：根据配置的模型模式自动设置适当的提供商
 - **OpenAI 兼容身份验证**：使用标准的 Bearer token 认证格式
 - **流式响应支持**：完全支持 SSE（Server-Sent Events）流式输出
 - **灵活部署选项**：
@@ -45,43 +42,46 @@ cargo run --release
 # 指定端口
 cargo run --release -- --port 8080
 
+# 指定模型到提供商的映射
+cargo run --release -- --model-provider-mapping "*anthropic/claude*=Anthropic,Google" --model-provider-mapping "gpt-4=OpenAI"
+
 # HTTPS 模式 (需要 SSL 证书)
 cargo run --release -- --https --cert-path=./cert.pem --key-path=./key.pem
 ```
 
 ## 使用方法
 
-### 带提供商路径
+### 标准 OpenAI 格式
 
-使用这种格式，可以通过 URL 路径指定 AI 提供商：
+发送与 OpenAI API 兼容的请求，如果模型名称匹配配置的模式，服务器会自动添加适当的提供商:
 
 ```bash
-curl -X POST http://localhost:3000/v1/anthropic/chat/completions \
+curl -X POST http://localhost:3000/v1/chat/completions \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer YOUR_OPENROUTER_API_KEY" \
   -d '{
-    "model": "claude-3-opus-20240229",
+    "model": "anthropic/claude-3-opus-20240229",
     "messages": [{"role": "user", "content": "Hello!"}],
     "temperature": 0.7
   }'
 ```
 
-实际发送到 OpenRouter 的请求会变成：
+对于匹配 "*anthropic/claude*" 模式的模型，上面的请求会被自动转换为:
 
 ```json
 {
-  "model": "claude-3-opus-20240229",
+  "model": "anthropic/claude-3-opus-20240229",
   "messages": [{"role": "user", "content": "Hello!"}],
   "temperature": 0.7,
   "provider": {
-    "order": ["anthropic"]
+    "order": ["Anthropic", "Google"]
   }
 }
 ```
 
-### 标准 OpenAI 格式
+### 显式指定提供商
 
-如果不想指定提供商，或者想在请求体中手动设置提供商，可以使用标准格式：
+如果需要手动控制提供商，仍然可以在请求体中直接指定:
 
 ```bash
 curl -X POST http://localhost:3000/v1/chat/completions \
@@ -98,14 +98,14 @@ curl -X POST http://localhost:3000/v1/chat/completions \
 
 ### 流式输出
 
-支持标准的 OpenAI 流式输出格式：
+支持标准的 OpenAI 流式输出格式:
 
 ```bash
-curl -X POST http://localhost:3000/v1/anthropic/chat/completions \
+curl -X POST http://localhost:3000/v1/chat/completions \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer YOUR_OPENROUTER_API_KEY" \
   -d '{
-    "model": "claude-3-opus-20240229",
+    "model": "anthropic/claude-3-opus-20240229",
     "messages": [{"role": "user", "content": "Hello!"}],
     "stream": true
   }'
@@ -115,11 +115,6 @@ curl -X POST http://localhost:3000/v1/anthropic/chat/completions \
 
 ### 支持的端点
 
-#### 带提供商路径:
-- `/v1/{provider}/chat/completions`
-- `/v1/{provider}/embeddings`
-
-#### 不带提供商路径:
 - `/v1/chat/completions`
 - `/v1/embeddings`
 - `/v1/models`
@@ -140,6 +135,13 @@ curl -X POST http://localhost:3000/v1/anthropic/chat/completions \
 | `--cert-path PATH` | SSL 证书路径 | 无 |
 | `--key-path PATH` | SSL 私钥路径 | 无 |
 | `--openrouter-base-url URL` | OpenRouter API 基础 URL | `https://openrouter.ai/api/v1` |
+| `--model-provider-mapping PATTERN=PROVIDER1,PROVIDER2` | 模型模式到提供商的映射 | 无 |
+
+模型模式支持以下通配符匹配:
+- `*suffix` - 匹配以 "suffix" 结尾的模型名称
+- `prefix*` - 匹配以 "prefix" 开头的模型名称
+- `*substring*` - 匹配包含 "substring" 的模型名称
+- 精确匹配 - 没有通配符时进行精确匹配
 
 ## 项目结构
 

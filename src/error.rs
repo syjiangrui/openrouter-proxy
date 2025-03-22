@@ -13,9 +13,6 @@ pub enum AppError {
     #[error("解析错误: {0}")]
     Parse(String),
 
-    #[error("代理错误: {0}")]
-    Proxy(String),
-
     #[error("TLS 错误: {0}")]
     Tls(String),
 
@@ -24,9 +21,6 @@ pub enum AppError {
 
     #[error("IO 错误: {0}")]
     Io(#[from] std::io::Error),
-
-    #[error("服务器错误: {0}")]
-    Server(String),
 }
 
 impl IntoResponse for AppError {
@@ -34,7 +28,6 @@ impl IntoResponse for AppError {
         let (status, error_type, message) = match &self {
             AppError::Auth(msg) => (StatusCode::UNAUTHORIZED, "auth_error", msg),
             AppError::Parse(msg) => (StatusCode::BAD_REQUEST, "parse_error", msg),
-            AppError::Proxy(msg) => (StatusCode::BAD_GATEWAY, "proxy_error", msg),
             AppError::Tls(msg) => (StatusCode::INTERNAL_SERVER_ERROR, "tls_error", msg),
             AppError::Request(e) => (StatusCode::BAD_GATEWAY, "request_error", &e.to_string()),
             AppError::Io(e) => (
@@ -42,7 +35,6 @@ impl IntoResponse for AppError {
                 "io_error",
                 &e.to_string(),
             ),
-            AppError::Server(msg) => (StatusCode::INTERNAL_SERVER_ERROR, "server_error", msg),
         };
 
         let body = json!({

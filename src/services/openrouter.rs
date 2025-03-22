@@ -1,4 +1,4 @@
-use crate::error::AppError;
+use crate::{config::Config, error::AppError, models::request};
 use axum::{
     body::{Body, Bytes},
     http::{HeaderMap, Method},
@@ -11,15 +11,20 @@ use std::sync::Arc;
 pub struct OpenRouterService {
     client: Client,
     base_url: String,
+    config: Config,
 }
 
 impl OpenRouterService {
-    pub fn new(base_url: String) -> Self {
+    pub fn new(config: Config) -> Self {
         let client = Client::builder()
             .build()
             .expect("Failed to create HTTP client");
 
-        Self { client, base_url }
+        Self {
+            client,
+            base_url: config.openrouter_base_url.clone(),
+            config,
+        }
     }
 
     // 从请求头中提取API密钥
@@ -43,47 +48,42 @@ impl OpenRouterService {
 
     pub async fn proxy_request(
         &self,
-        provider: Option<&str>,
         path: &str,
         method: Method,
         headers: &HeaderMap,
         body: Bytes,
     ) -> Result<Response, AppError> {
-        let should_modify_provider = provider.is_some();
-
         // 提取API密钥
         let api_key = self.extract_api_key(headers)?;
 
         // 处理请求体
-        let processed_body = self.process_request_body(&body, provider, should_modify_provider)?;
+        let processed_body = self.process_request_body(&body, path)?;
 
         // 发送代理请求
         self.send_proxy_request(path, method, headers, processed_body, &api_key)
             .await
     }
 
-    // 处理请求体，如果需要可以修改模型名称
-    pub fn process_request_body(
-        &self,
-        body: &[u8],
-        provider: Option<&str>,
-        should_modify_provider: bool,
-    ) -> Result<Vec<u8>, AppError> {
-        // 如果不需要修改或者没有提供商，则直接返回原始请求体
-        if !should_modify_provider || provider.is_none() {
-            return Ok(body.to_vec());
-        }
-
+    // 处理请求体，根据模型名称自动设置提供商
+    pub fn process_request_body(&self, body: &[u8], path: &str) -> Result<Vec<u8>, AppError> {
         // 解析JSON
         let mut json_body: serde_json::Value = serde_json::from_slice(body)
             .map_err(|_| AppError::Parse("无效的 JSON 请求体".into()))?;
 
-        // 修改提供商信息
-        if let Some(provider_name) = provider {
-            // 使用辅助函数设置提供商
-            crate::models::request::set_provider(&mut json_body, provider_name);
+        // 仅在chat/completions和embeddings请求中检查模型
+        if path.contains("chat/completions") || path.contains("embeddings") {
+            // 尝试从请求中获取模型名称
+            if let Some(model) = json_body.get("model").and_then(|v| v.as_str()) {
+                // 查找配置中该模型对应的提供商
+                if let Some(providers) = self.config.find_providers_for_model(model) {
+                    tracing::info!("为模型 {} 设置提供商: {:?}", model, providers);
+                    // 使用辅助函数设置提供商
+                    request::set_providers(&mut json_body, providers);
+                }
+            }
         }
-
+        //
+        tracing::info!("修改后的请求体: {}", json_body);
         // 转回字节
         serde_json::to_vec(&json_body)
             .map_err(|_| AppError::Parse("无法序列化修改后的请求体".into()))
@@ -110,7 +110,7 @@ impl OpenRouterService {
         // 复制其他请求头
         for (name, value) in headers.iter() {
             // 避免复制已处理的头
-            if name != "host" && name != "authorization" {
+            if name != "host" && name != "authorization" && name != "content-length" {
                 req_builder = req_builder.header(name, value);
             }
         }
@@ -125,57 +125,30 @@ impl OpenRouterService {
         let status = resp.status();
         let headers = resp.headers().clone();
 
-        // 处理流式响应
-        if path.contains("chat/completions")
-            && headers
-                .get("content-type")
-                .and_then(|v| v.to_str().ok())
-                .map_or(false, |v| v.contains("text/event-stream"))
-        {
-            // 将 reqwest 流映射错误为 std::io::Error
-            let stream = resp
-                .bytes_stream()
-                .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()));
+        // 将 reqwest 流映射错误为 std::io::Error
+        let stream = resp
+            .bytes_stream()
+            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()));
 
-            // 创建响应并将其转换为 Axum 期望的类型
-            let mut response = Response::new(Body::wrap_stream(stream));
-            *response.status_mut() = status;
+        // 创建响应并将其转换为 Axum 期望的类型
+        let mut response = Response::new(Body::wrap_stream(stream));
+        *response.status_mut() = status;
 
-            // 复制必要的响应头
-            for (name, value) in headers.iter() {
-                if name != "transfer-encoding" && name != "connection" {
-                    response.headers_mut().insert(name, value.clone());
-                }
+        // 复制必要的响应头
+        for (name, value) in headers.iter() {
+            if name != "transfer-encoding" && name != "connection" {
+                response.headers_mut().insert(name, value.clone());
             }
-
-            // 使用 into_response() 转换为 Axum 期望的类型
-            return Ok(response.into_response());
         }
 
-        // 处理非流式响应
-        match resp.bytes().await {
-            Ok(bytes) => {
-                let mut response = Response::new(Body::from(bytes));
-                *response.status_mut() = status;
-
-                // 复制必要的响应头
-                for (name, value) in headers.iter() {
-                    if name != "transfer-encoding" && name != "connection" {
-                        response.headers_mut().insert(name, value.clone());
-                    }
-                }
-
-                // 使用 into_response() 转换为 Axum 期望的类型
-                Ok(response.into_response())
-            }
-            Err(e) => Err(AppError::Proxy(format!("读取API响应出错: {}", e))),
-        }
+        // 使用 into_response() 转换为 Axum 期望的类型
+        return Ok(response.into_response());
     }
 }
 
 // 创建共享服务实例
 pub type SharedOpenRouterService = Arc<OpenRouterService>;
 
-pub fn create_service(base_url: String) -> SharedOpenRouterService {
-    Arc::new(OpenRouterService::new(base_url))
+pub fn create_service(config: Config) -> SharedOpenRouterService {
+    Arc::new(OpenRouterService::new(config))
 }
