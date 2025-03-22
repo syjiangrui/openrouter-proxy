@@ -83,7 +83,7 @@ impl OpenRouterService {
             }
         }
         //
-        tracing::info!("修改后的请求体: {}", json_body);
+        tracing::debug!("修改后的请求体: {}", json_body);
         // 转回字节
         serde_json::to_vec(&json_body)
             .map_err(|_| AppError::Parse("无法序列化修改后的请求体".into()))
