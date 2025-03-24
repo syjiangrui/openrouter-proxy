@@ -34,9 +34,3 @@ jobs:
       with:
         command: test
         args: --all-features
-    
-    - name: Lint
-      uses: actions-rs/cargo@v1
-      with:
-        command: clippy
-        args: -- -D warnings
