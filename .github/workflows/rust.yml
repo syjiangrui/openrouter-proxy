@@ -1,5 +1,6 @@
 on:
   push:
+    branches: [ main, master ]
     tags:
       - 'v*' # Run workflow on version tags, e.g. v1.0.0
 
