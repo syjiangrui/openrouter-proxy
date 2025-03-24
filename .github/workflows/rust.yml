@@ -18,8 +18,8 @@ jobs:
         os: [ubuntu-latest]
         include:
           - os: ubuntu-latest
-            artifact_name: your-app-name
-            asset_name: your-app-name-linux-amd64
+            artifact_name: openrouter-proxy
+            asset_name: openrouter-proxy-linux-amd64
     
     runs-on: ${{ matrix.os }}
 
