@@ -1,8 +1,5 @@
-name: Rust Build and Release
-
 on:
   push:
-    branches: [ main, master ]
     tags:
       - 'v*' # Run workflow on version tags, e.g. v1.0.0
 
@@ -18,8 +15,8 @@ jobs:
         os: [ubuntu-latest]
         include:
           - os: ubuntu-latest
-            artifact_name: ${{ env.RELEASE_BIN }}
-            asset_name: ${{ env.RELEASE_BIN }}-linux-amd64
+            artifact_name: your-app-name
+            asset_name: your-app-name-linux-amd64
     
     runs-on: ${{ matrix.os }}
 
