@@ -66,6 +66,10 @@ impl OpenRouterService {
 
     // 处理请求体，根据模型名称自动设置提供商
     pub fn process_request_body(&self, body: &[u8], path: &str) -> Result<Vec<u8>, AppError> {
+        // 如果请求体为空，则直接返回
+        if body.is_empty() {
+            return Ok(body.to_vec());
+        }
         // 解析JSON
         let mut json_body: serde_json::Value = serde_json::from_slice(body)
             .map_err(|_| AppError::Parse("无效的 JSON 请求体".into()))?;
