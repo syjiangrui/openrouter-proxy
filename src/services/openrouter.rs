@@ -7,6 +7,7 @@ use axum::{
 use futures_util::TryStreamExt;
 use reqwest::Client;
 use std::sync::Arc;
+use std::time::Duration;
 
 pub struct OpenRouterService {
     client: Client,
@@ -17,6 +18,8 @@ pub struct OpenRouterService {
 impl OpenRouterService {
     pub fn new(config: Config) -> Self {
         let client = Client::builder()
+            .timeout(Duration::from_secs(900)) // 设置总超时为900秒
+            .connect_timeout(Duration::from_secs(10)) // 设置连接超时为10秒
             .build()
             .expect("Failed to create HTTP client");
 
