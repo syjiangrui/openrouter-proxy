@@ -28,6 +28,10 @@ pub struct Config {
     #[arg(long, default_value = "https://openrouter.ai/api/v1")]
     pub openrouter_base_url: String,
 
+    /// 启用详细请求日志（打印每个请求的方法、路径、状态码、耗时等）
+    #[arg(long, default_value_t = false)]
+    pub verbose: bool,
+
     /// 模型到提供商的映射配置 (格式: 模式=提供商1,提供商2)
     #[arg(long, value_parser = parse_model_provider_mapping)]
     pub model_provider_mapping: Vec<(String, Vec<String>)>,

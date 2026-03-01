@@ -10,6 +10,7 @@ use axum::{
 };
 use std::net::{IpAddr, SocketAddr};
 use tower_http::cors::{Any, CorsLayer};
+use tower_http::trace::TraceLayer;
 use tracing::info;
 
 pub async fn run(config: Config) -> Result<(), AppError> {
@@ -41,6 +42,13 @@ pub async fn run(config: Config) -> Result<(), AppError> {
         .route("/api/models", any(proxy::proxy_models))
         .layer(cors)
         .with_state(service);
+
+    // verbose 模式挂载请求追踪层
+    let app = if config.verbose {
+        app.layer(TraceLayer::new_for_http())
+    } else {
+        app
+    };
 
     // 解析 IP 地址
     let ip: IpAddr = config
