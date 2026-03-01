@@ -25,13 +25,20 @@ pub async fn run(config: Config) -> Result<(), AppError> {
     // 创建路由
     let app = Router::new()
         .route("/", get(health_check))
-        // 只提供标准路径
+        // /api/v1/* 标准路径
         .route(
             "/api/v1/chat/completions",
             any(proxy::proxy_chat_completions),
         )
         .route("/api/v1/embeddings", any(proxy::proxy_embeddings))
         .route("/api/v1/models", any(proxy::proxy_models))
+        // /api/* 兼容路径（不含 v1）
+        .route(
+            "/api/chat/completions",
+            any(proxy::proxy_chat_completions),
+        )
+        .route("/api/embeddings", any(proxy::proxy_embeddings))
+        .route("/api/models", any(proxy::proxy_models))
         .layer(cors)
         .with_state(service);
 
