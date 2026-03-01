@@ -41,3 +41,15 @@ pub async fn proxy_models(
         .proxy_request("models", method, &headers, body)
         .await
 }
+
+// Anthropic messages 端点
+pub async fn proxy_messages(
+    State(service): State<SharedOpenRouterService>,
+    method: Method,
+    headers: HeaderMap,
+    body: Bytes,
+) -> Result<Response, AppError> {
+    service
+        .proxy_request("messages", method, &headers, body)
+        .await
+}
